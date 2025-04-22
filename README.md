@@ -6,6 +6,7 @@ You can filter PRs by:
 - Reviewers: one or more GitHub usernames
 - Teams: one or more GitHub teams (e.g. org/team-slug)
 - Created date: only show PRs opened within the last N days
+- Approval status: skip PRs you've already approved (enabled by default)
 
 ---
 
@@ -23,11 +24,13 @@ REVIEW_USERS="your-username another-user"
 REVIEW_TEAMS="your-org/team-slug another-org/another-team"  
 REPOS="org1/repo1 org2/repo2"  
 PR_LOOKBACK_DAYS=180
+SKIP_ALREADY_APPROVED=true
 
 - `REVIEW_USERS` — space-separated GitHub usernames to match as reviewers  
 - `REVIEW_TEAMS` — space-separated team slugs in org/team format  
 - `REPOS` — space-separated org/repo names  
 - `PR_LOOKBACK_DAYS` — optional; defaults to 180  
+- `SKIP_ALREADY_APPROVED` - optional; defaults to true. Set to false to include PRs you've already approved
 
 ---
 

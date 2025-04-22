@@ -24,10 +24,14 @@ fi
 # Default to 6 months if not set
 PR_LOOKBACK_DAYS="${PR_LOOKBACK_DAYS:-180}"
 
+# Default to skipping already approved PRs
+SKIP_ALREADY_APPROVED="${SKIP_ALREADY_APPROVED:-true}"
+
 echo "ℹ️  REVIEW_USERS: $REVIEW_USERS"
 echo "ℹ️  REVIEW_TEAMS: $REVIEW_TEAMS"
 echo "ℹ️  REPOS: $REPOS"
 echo "ℹ️  PR_LOOKBACK_DAYS: $PR_LOOKBACK_DAYS"
+echo "ℹ️  SKIP_ALREADY_APPROVED: $SKIP_ALREADY_APPROVED"
 
 # --- Compute cutoff date ---
 CUTOFF_DATE=$(date -u -v-"$PR_LOOKBACK_DAYS"d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "$PR_LOOKBACK_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)
@@ -56,11 +60,13 @@ for REPO in $REPOS; do
     PR_TEAMS=$(_jq '.teams[]?')
 
     MATCHED=0
+    REVIEW_USER=""
 
     # Match users
     for user in "${USER_LIST[@]}"; do
       if grep -q "^$user$" <<<"$PR_REVIEWERS"; then
         MATCHED=1
+        REVIEW_USER="$user"
         break
       fi
     done
@@ -70,9 +76,21 @@ for REPO in $REPOS; do
       for team in "${TEAM_SLUGS[@]}"; do
         if grep -q "^$team$" <<<"$PR_TEAMS"; then
           MATCHED=1
+          REVIEW_USER="$GITHUB_USER" # fallback if team match
           break
         fi
       done
+    fi
+
+    # Skip PRs already approved by you, if flag is enabled
+    if [[ "$MATCHED" -eq 1 && "$SKIP_ALREADY_APPROVED" == "true" && -n "$REVIEW_USER" ]]; then
+      reviews=$(gh api "repos/$REPO/pulls/$PR_NUM/reviews")
+      already_approved=$(echo "$reviews" | jq -r --arg login "$REVIEW_USER" '
+        map(select(.user.login == $login and .state == "APPROVED")) | length > 0')
+
+      if [[ "$already_approved" == "true" ]]; then
+        continue
+      fi
     fi
 
     # Output result
@@ -93,4 +111,5 @@ for REPO in $REPOS; do
         teams: [.requested_teams[]?.slug]
       } | @base64'
   )
+
 done
